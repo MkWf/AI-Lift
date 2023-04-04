@@ -8,6 +8,6 @@ Intelligently detect the workout equipment being used, exercise being performed,
 
 * UI: Jetpack Compose
 
-* Tensor Flow Lite, Google Colab
+* TensorFlow Lite, Google Colab
 
  
