@@ -1,2 +1,2 @@
-# AILift
+# AI-Lift
  
