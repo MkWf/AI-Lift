@@ -3,9 +3,10 @@ package com.markbwassef.ailift
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.media.Image
 import android.os.Bundle
 import android.provider.MediaStore
-import android.widget.Toast
+import android.view.Surface
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -18,25 +19,28 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.painter.BitmapPainter
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+
 import androidx.lifecycle.MutableLiveData
+import com.markbwassef.ailift.ml.LandmarkClassification
+import com.markbwassef.ailift.ml.SsdMobilenetV11Metadata1
 import com.markbwassef.ailift.ui.theme.AILiftTheme
+import org.tensorflow.lite.support.image.TensorImage
 
 class MainActivity : ComponentActivity() {
 
-   // lateinit var model: SsdMobilenetV11Metadata1
+    //lateinit var model: SsdMobilenetV11Metadata1
    // val labels = FileUtil.loadLabels(this, "labels.txt")
     private val imageLive = MutableLiveData<Bitmap>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        var labels = application.assets.open("labels.txt").bufferedReader().readLines()
+
         setContent {
             AILiftTheme {
                 val image = imageLive.observeAsState().value
+                var prediction = remember {"New Prediction"}
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -62,13 +66,31 @@ class MainActivity : ComponentActivity() {
                                 Text(text = "Select Image")
                             }
                             Button(onClick ={
+                                /*val model = SsdMobilenetV11Metadata1.newInstance(this@MainActivity)
+                                // Creates inputs for reference.
+                                val tensorImage = TensorImage.fromBitmap(image)
+                                // Runs model inference and gets result.
+                                val outputs = model.process(tensorImage)
+                                val locations = outputs.locationsAsTensorBuffer
+                                val classes = outputs.classesAsTensorBuffer
+                                val scores = outputs.scoresAsTensorBuffer
+                                val numberOfDetections = outputs.numberOfDetectionsAsTensorBuffer
+                                prediction = numberOfDetections.toString()*/
+
+                                val model = LandmarkClassification.newInstance(this@MainActivity)
+                                val image = TensorImage.fromBitmap(image)
+
+                                val outputs = model.process(image)
+                                val probability = outputs.probabilityAsCategoryList
+
+                                model.close()
 
                             }){
                                 Text(text = "Predict")
                             }
                         }
                         Text(
-                            text = "Prediction"
+                            text = prediction
                         )
                     }
                 }
@@ -83,7 +105,7 @@ class MainActivity : ComponentActivity() {
         if(requestCode == 100){
             var uri = data?.data
             imageLive.value = MediaStore.Images.Media.getBitmap(this.contentResolver, uri)
-            get_predictions()
+            //get_predictions()
         }
     }
 
@@ -92,14 +114,6 @@ class MainActivity : ComponentActivity() {
        // model.close()
     }
 
-    fun get_predictions(){
-      //  val image = TensorImage.fromBitmap(bitmap)
-       // val outputs = model.process(image)
-      //  val locations = outputs.locationsAsTensorBuffer
-      //  val classes = outputs.classesAsTensorBuffer
-      //  val scores = outputs.scoresAsTensorBuffer
-      //  val numberOfDetections = outputs.numberOfDetectionsAsTensorBuffer
-    }
 }
 
 @Preview(showBackground = true)
