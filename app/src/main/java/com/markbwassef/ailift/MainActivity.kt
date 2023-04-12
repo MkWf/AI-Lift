@@ -3,6 +3,9 @@ package com.markbwassef.ailift
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
 import android.media.Image
 import android.os.Bundle
 import android.provider.MediaStore
@@ -22,20 +25,25 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.tooling.preview.Preview
 
 import androidx.lifecycle.MutableLiveData
-import com.markbwassef.ailift.ml.LandmarkClassification
 import com.markbwassef.ailift.ml.SsdMobilenetV11Metadata1
 import com.markbwassef.ailift.ui.theme.AILiftTheme
+import org.tensorflow.lite.support.common.FileUtil
+import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
+import org.tensorflow.lite.support.image.ops.ResizeOp
 
 class MainActivity : ComponentActivity() {
 
-    //lateinit var model: SsdMobilenetV11Metadata1
-   // val labels = FileUtil.loadLabels(this, "labels.txt")
+    lateinit var model: SsdMobilenetV11Metadata1
     private val imageLive = MutableLiveData<Bitmap>()
+    lateinit var labels: List<String>
+    val imageProcessor = ImageProcessor
+        .Builder().add(ResizeOp(300, 300, ResizeOp.ResizeMethod.BILINEAR)).build()
+    val paint = Paint()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        var labels = application.assets.open("labels.txt").bufferedReader().readLines()
+        labels = FileUtil.loadLabels(this, "labels.txt")
 
         setContent {
             AILiftTheme {
@@ -66,24 +74,42 @@ class MainActivity : ComponentActivity() {
                                 Text(text = "Select Image")
                             }
                             Button(onClick ={
-                                /*val model = SsdMobilenetV11Metadata1.newInstance(this@MainActivity)
-                                // Creates inputs for reference.
-                                val tensorImage = TensorImage.fromBitmap(image)
-                                // Runs model inference and gets result.
+                                model = SsdMobilenetV11Metadata1.newInstance(this@MainActivity)
+
+                                var tensorImage = TensorImage.fromBitmap(image)
+                                tensorImage = imageProcessor.process(tensorImage)
+
                                 val outputs = model.process(tensorImage)
-                                val locations = outputs.locationsAsTensorBuffer
-                                val classes = outputs.classesAsTensorBuffer
-                                val scores = outputs.scoresAsTensorBuffer
-                                val numberOfDetections = outputs.numberOfDetectionsAsTensorBuffer
-                                prediction = numberOfDetections.toString()*/
+                                val locations = outputs.locationsAsTensorBuffer.floatArray
+                                val classes = outputs.classesAsTensorBuffer.floatArray
+                                val scores = outputs.scoresAsTensorBuffer.floatArray
+                                val numberOfDetections = outputs.numberOfDetectionsAsTensorBuffer.floatArray
 
-                                val model = LandmarkClassification.newInstance(this@MainActivity)
-                                val image = TensorImage.fromBitmap(image)
+                                var mutableBitmap = image?.copy(Bitmap.Config.ARGB_8888, true)
+                                val canvas = mutableBitmap?.let { Canvas(it) }
 
-                                val outputs = model.process(image)
-                                val probability = outputs.probabilityAsCategoryList
-
-                                model.close()
+                                val height = mutableBitmap?.height!!
+                                val width = mutableBitmap?.width!!
+                                paint.textSize = height/15f
+                                paint.strokeWidth  = height/85f
+                                var x = 0
+                                scores.forEachIndexed { index, fl ->
+                                    x = index
+                                    x *= 4
+                                    if(fl > 0.5){
+                                        paint.style = Paint.Style.STROKE
+                                        canvas?.drawRect(RectF((locations[x+1]*width),
+                                            locations[x]*height, locations[x+3]*width, locations[x+2]*height
+                                        ), paint)
+                                        paint.style = Paint.Style.FILL
+                                        canvas?.drawText(
+                                            labels[classes[index].toInt()]+" "+fl.toString(),
+                                            locations[x+1]*width,
+                                            locations[x]*height,
+                                            paint)
+                                    }
+                                }
+                                imageLive.value = mutableBitmap
 
                             }){
                                 Text(text = "Predict")
@@ -111,9 +137,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-       // model.close()
+        model.close()
     }
-
 }
 
 @Preview(showBackground = true)
