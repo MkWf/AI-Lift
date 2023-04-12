@@ -13,4 +13,5 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "AILift"
-include ':app'
+include ':imageod'
+include ':realtimeod'
